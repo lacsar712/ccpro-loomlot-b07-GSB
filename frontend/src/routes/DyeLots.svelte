@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { api, VAT_STATUS, toLocalInput, fromLocalInput } from '../lib/api.js';
+  import { api, VAT_STATUS, LOT_STATUS, toLocalInput, fromLocalInput } from '../lib/api.js';
 
   let vats = [];
   let rows = [];
@@ -83,10 +83,24 @@
       error = e.message;
     }
   }
+
+  async function voidLot(id) {
+    if (!confirm('确认作废该染程？作废后排液缸方可回到就绪。')) return;
+    error = '';
+    try {
+      await api(`/dye-lots/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'void' }),
+      });
+      await load();
+    } catch (e) {
+      error = e.message;
+    }
+  }
 </script>
 
 <h1 class="page-title">染程</h1>
-<p class="page-sub">仅 ready / dyeing 染缸可开缸；提交后染缸自动变为染色中。</p>
+<p class="page-sub">就绪 / 染程中染缸可开染程（排液缸 409）；开染程自动进入染程中。排液回就绪前须先作废或删除未完成染程。</p>
 
 <div class="panel" style="margin-bottom:1rem;">
   <div class="form-grid">
@@ -124,6 +138,7 @@
         <th>布料 kg</th>
         <th>开始</th>
         <th>操作员</th>
+        <th>染程状态</th>
         <th></th>
       </tr>
     </thead>
@@ -136,7 +151,13 @@
           <td>{row.fabricKg}</td>
           <td>{new Date(row.startedAt).toLocaleString()}</td>
           <td>{row.operatorName}</td>
+          <td>
+            <span class="badge lot {row.status}">{LOT_STATUS[row.status] || row.status}</span>
+          </td>
           <td class="row-actions">
+            {#if row.status !== 'void'}
+              <button class="btn ghost small" type="button" on:click={() => voidLot(row.id)}>作废</button>
+            {/if}
             <button class="btn ghost small" type="button" on:click={() => startEdit(row)}>编辑</button>
             <button class="btn danger small" type="button" on:click={() => remove(row.id)}>删除</button>
           </td>

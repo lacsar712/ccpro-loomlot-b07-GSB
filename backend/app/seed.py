@@ -77,26 +77,27 @@ def seed() -> None:
             db.flush()
 
             now = datetime.now(timezone.utc)
+            # 染程中缸 v1：挂一条进行中染程
             lot1 = DyeLot(
                 vat_id=v1.id,
                 recipe_name="靛蓝冷染三浸",
                 fabric_kg=42.5,
                 started_at=now - timedelta(hours=6),
                 operator_name="染程操作员",
+                status="active",
             )
+            # 排液缸 v4：染程已作废，满足「排液 → 就绪」的前置（无未作废染程）
             lot2 = DyeLot(
-                vat_id=v3.id,
+                vat_id=v4.id,
                 recipe_name="青蓝套染",
                 fabric_kg=18.0,
                 started_at=now - timedelta(days=2),
                 operator_name="染坊主管",
+                status="void",
             )
             db.add_all([lot1, lot2])
             db.flush()
 
-            # lot2 was on ready vat historically — keep v3 ready for demo create path
-            # Re-set: creating lot2 would have set dyeing; for seed we leave one dyeing + one ready
-            v3.status = "ready"
             db.add_all(
                 [
                     FastnessCheck(

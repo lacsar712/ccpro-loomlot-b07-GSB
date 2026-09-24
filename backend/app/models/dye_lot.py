@@ -20,6 +20,7 @@ class DyeLot(Base):
     fabric_kg: Mapped[float] = mapped_column(Float, nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     operator_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
 
     vat: Mapped["Vat"] = relationship("Vat", back_populates="dye_lots")
     fastness_checks: Mapped[List["FastnessCheck"]] = relationship(

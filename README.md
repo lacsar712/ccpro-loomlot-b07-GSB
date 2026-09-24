@@ -49,14 +49,36 @@ docker compose down
 
 1. **DyeHouse** — `name`, `waterNote`, `notes`
 2. **Vat** — `dyeHouseId`, `vatCode`, `fiberType`, `capacityL`, `status` ∈ `ready|dyeing|drain`
-3. **DyeLot** — `vatId`, `recipeName`, `fabricKg`, `startedAt`, `operatorName`
+3. **DyeLot** — `vatId`, `recipeName`, `fabricKg`, `startedAt`, `operatorName`, `status` ∈ `active|void`
 4. **FastnessCheck** — `dyeLotId`, `checkedAt`, `washFastness`(1–5), `rubFastness`(>0), `tempC`, `notes`
 
 ### 规则
 
-- 仅当染缸状态为 `ready` 或 `dyeing` 时可新建染程，否则 409
-- 新建染程后，染缸状态自动设为 `dyeing`
-- 可选接口：`POST /api/vats/{id}/drain` 将染缸置为 `drain`
+染缸状态迁移收拢在后端唯一函数 `app.services.vat_status.apply_vat_status`，开染程、排液口、手工改状态三条路径共用；任何散落判断导致的非法跳跃都视为缺陷。
+
+状态迁移图（自身 → 自身幂等放行）：
+
+```
+                 开染程
+   ┌──────────────────────────────┐
+   ▼                               │
+ 就绪 ready  ⇄  染程中 dyeing  ──▶  排液 drain
+   ▲              排液口 POST/drain      │
+   └────────────── 回到就绪 ◀────────────┘
+```
+
+| 当前状态 | 允许的下一状态 |
+| --- | --- |
+| `ready` 就绪 | `dyeing` |
+| `dyeing` 染程中 | `ready`、`drain` |
+| `drain` 排液 | `ready` |
+
+- 就绪与染程中可互转；染程中可进排液；**排液只能回到就绪**。
+- 一切非法跳跃（如 `ready → drain`、`drain → dyeing`）返回 **409**，`detail` 为中文并列出允许的下一状态。
+- 开染程（`POST /api/dye-lots`，含染程改挂目标缸）自动把染缸置为 `dyeing`，同样经过统一判定：排液缸上开染程会 409。
+- **排液回到就绪时**，若该缸仍存在未作废染程（`DyeLot.status != "void"`），返回 409，要求先处理染程（作废 `PUT /api/dye-lots/{id}` 置 `status=void`，或删除）。
+- `GET /api/vats` 每个染缸返回 `allowedNextStatuses`，供列表展示允许的下一状态提示。
+- 看板 `GET /api/dashboard/stats` 的 `vatDrainCount`（排液缸数）与染缸列表中 `status=drain` 的行数一致。
 
 ## 主要 API
 

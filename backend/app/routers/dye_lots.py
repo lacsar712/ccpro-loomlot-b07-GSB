@@ -10,10 +10,9 @@ from app.models.dye_lot import DyeLot
 from app.models.user import User
 from app.models.vat import Vat
 from app.schemas.dye_lot import DyeLotCreate, DyeLotUpdate, DyeLotOut
+from app.services.vat_status import DYEING, apply_vat_status
 
 router = APIRouter(prefix="/api/dye-lots", tags=["dye-lots"])
-
-ALLOWED_VAT_STATUSES = {"ready", "dyeing"}
 
 
 @router.get("", response_model=List[DyeLotOut])
@@ -37,19 +36,16 @@ def create_dye_lot(
     vat = db.query(Vat).filter(Vat.id == payload.vat_id).first()
     if not vat:
         raise HTTPException(status_code=400, detail="染缸不存在")
-    if vat.status not in ALLOWED_VAT_STATUSES:
-        raise HTTPException(
-            status_code=409,
-            detail=f"染缸状态为「{vat.status}」，仅 ready 或 dyeing 时可新建染程",
-        )
+    # 开染程自动入「染程中」：与排液口、手工改状态共用同一判定函数。
+    apply_vat_status(db, vat, DYEING)
     item = DyeLot(
         vat_id=payload.vat_id,
         recipe_name=payload.recipe_name,
         fabric_kg=payload.fabric_kg,
         started_at=payload.started_at,
         operator_name=payload.operator_name,
+        status=payload.status,
     )
-    vat.status = "dyeing"
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -79,16 +75,14 @@ def update_dye_lot(
     if not item:
         raise HTTPException(status_code=404, detail="染程不存在")
     data = payload.model_dump(exclude_unset=True)
-    if "vat_id" in data and data["vat_id"] != item.vat_id:
-        vat = db.query(Vat).filter(Vat.id == data["vat_id"]).first()
-        if not vat:
+    new_vat_id = data.pop("vat_id", None)
+    if new_vat_id is not None and new_vat_id != item.vat_id:
+        target_vat = db.query(Vat).filter(Vat.id == new_vat_id).first()
+        if not target_vat:
             raise HTTPException(status_code=400, detail="染缸不存在")
-        if vat.status not in ALLOWED_VAT_STATUSES:
-            raise HTTPException(
-                status_code=409,
-                detail=f"目标染缸状态为「{vat.status}」，无法改挂染程",
-            )
-        vat.status = "dyeing"
+        # 染程改挂：目标缸自动入「染程中」，同样走统一判定。
+        apply_vat_status(db, target_vat, DYEING)
+        item.vat_id = new_vat_id
     for k, v in data.items():
         setattr(item, k, v)
     db.commit()

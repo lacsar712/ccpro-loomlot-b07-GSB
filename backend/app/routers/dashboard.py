@@ -26,6 +26,7 @@ def get_stats(
         dye_house_total=db.query(func.count(DyeHouse.id)).scalar() or 0,
         vat_ready_count=db.query(func.count(Vat.id)).filter(Vat.status == "ready").scalar() or 0,
         vat_dyeing_count=db.query(func.count(Vat.id)).filter(Vat.status == "dyeing").scalar() or 0,
+        vat_drain_count=db.query(func.count(Vat.id)).filter(Vat.status == "drain").scalar() or 0,
         lots_last_7d=(
             db.query(func.count(DyeLot.id))
             .filter(DyeLot.started_at >= now - timedelta(days=7))

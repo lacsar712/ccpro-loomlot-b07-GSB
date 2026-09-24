@@ -1,4 +1,4 @@
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,3 +34,6 @@ class VatOut(BaseModel):
     fiber_type: str = Field(serialization_alias="fiberType")
     capacity_l: float = Field(serialization_alias="capacityL")
     status: VatStatus
+    allowed_next_statuses: List[VatStatus] = Field(
+        default_factory=list, serialization_alias="allowedNextStatuses"
+    )

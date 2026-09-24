@@ -210,6 +210,12 @@ th {
   border-color: rgba(224, 168, 74, 0.45);
 }
 
+.badge.lot.void {
+  color: var(--indigo-mist);
+  border-color: var(--line);
+  text-decoration: line-through;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
