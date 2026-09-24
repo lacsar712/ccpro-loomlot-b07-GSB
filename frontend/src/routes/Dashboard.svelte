@@ -34,7 +34,11 @@
     </div>
     <div class="stat">
       <div class="n">{stats.vatDyeingCount}</div>
-      <div class="l">染色中</div>
+      <div class="l">染程中</div>
+    </div>
+    <div class="stat">
+      <div class="n">{stats.vatDrainCount}</div>
+      <div class="l">排液染缸</div>
     </div>
     <div class="stat">
       <div class="n">{stats.lotsLast7d}</div>
@@ -49,7 +53,7 @@
 
 <div class="panel">
   <p style="margin:0 0 0.75rem;color:var(--indigo-mist);font-size:0.9rem;">
-    业务约束：仅当染缸为 <strong>ready</strong> 或 <strong>dyeing</strong> 时可新建染程；新建后染缸自动变为 dyeing。排液可用染缸「完成排液」动作。
+    业务约束：就绪 ⇄ 染程中 → 排液 → 就绪。开染程自动入染程中；排液回到就绪前须先处理完该缸染程，非法跳跃返回 409。
   </p>
   <div class="toolbar">
     <a class="btn" href="/houses" use:link>进入染坊</a>

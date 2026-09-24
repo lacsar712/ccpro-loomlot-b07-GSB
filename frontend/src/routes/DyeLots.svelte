@@ -86,7 +86,7 @@
 </script>
 
 <h1 class="page-title">染程</h1>
-<p class="page-sub">仅 ready / dyeing 染缸可开缸；提交后染缸自动变为染色中。</p>
+<p class="page-sub">仅 就绪 / 染程中 染缸可开缸；提交后染缸自动进入染程中。排液缸须先回就绪。</p>
 
 <div class="panel" style="margin-bottom:1rem;">
   <div class="form-grid">

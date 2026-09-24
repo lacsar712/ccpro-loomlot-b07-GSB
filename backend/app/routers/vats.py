@@ -10,6 +10,7 @@ from app.models.dye_house import DyeHouse
 from app.models.user import User
 from app.models.vat import Vat
 from app.schemas.vat import VatCreate, VatUpdate, VatOut
+from app.services.vat_status import DRAIN, transition_vat_status
 
 router = APIRouter(prefix="/api/vats", tags=["vats"])
 
@@ -79,8 +80,12 @@ def update_vat(
         house = db.query(DyeHouse).filter(DyeHouse.id == data["dye_house_id"]).first()
         if not house:
             raise HTTPException(status_code=400, detail="染坊不存在")
+    target_status = data.pop("status", None)
     for k, v in data.items():
         setattr(item, k, v)
+    # 手工改状态同样走唯一迁移入口，禁止绕过迁移图直接写 status。
+    if target_status is not None:
+        transition_vat_status(db, item, target_status)
     try:
         db.commit()
     except IntegrityError:
@@ -96,13 +101,11 @@ def drain_vat(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """可选：完成排液，将染缸状态置为 drain。"""
+    """排液口：仅染程中可排液，非法跳跃由统一迁移函数返回 409。"""
     item = db.query(Vat).filter(Vat.id == vat_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="染缸不存在")
-    if item.status == "drain":
-        raise HTTPException(status_code=400, detail="染缸已在排液状态")
-    item.status = "drain"
+    transition_vat_status(db, item, DRAIN)
     db.commit()
     db.refresh(item)
     return item

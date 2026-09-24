@@ -50,6 +50,6 @@ export function fromLocalInput(val) {
 
 export const VAT_STATUS = {
   ready: '就绪',
-  dyeing: '染色中',
+  dyeing: '染程中',
   drain: '排液',
 };

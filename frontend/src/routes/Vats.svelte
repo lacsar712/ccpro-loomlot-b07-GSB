@@ -70,10 +70,19 @@
     };
   }
 
-  async function drain(id) {
+  // 唯一的状态迁移动作：排液走专用排液口，其余走手工改状态，
+  // 后端三条路径共用同一迁移判定。
+  async function transition(row, target) {
     error = '';
     try {
-      await api(`/vats/${id}/drain`, { method: 'POST' });
+      if (target === 'drain') {
+        await api(`/vats/${row.id}/drain`, { method: 'POST' });
+      } else {
+        await api(`/vats/${row.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ status: target }),
+        });
+      }
       await load();
     } catch (e) {
       error = e.message;
@@ -93,7 +102,7 @@
 </script>
 
 <h1 class="page-title">染缸</h1>
-<p class="page-sub">状态：就绪 / 染色中 / 排液。容量单位为升。</p>
+<p class="page-sub">就绪 ⇄ 染程中 → 排液 → 就绪。排液回到就绪前须先处理完该缸染程。容量单位为升。</p>
 
 <div class="panel" style="margin-bottom:1rem;">
   <div class="form-grid">
@@ -111,9 +120,17 @@
     <label
       >状态
       <select bind:value={form.status}>
-        <option value="ready">就绪</option>
-        <option value="dyeing">染色中</option>
-        <option value="drain">排液</option>
+        {#if editing}
+          {@const cur = rows.find((r) => r.id === editing)}
+          <option value={cur.status}>{VAT_STATUS[cur.status] || cur.status}（当前）</option>
+          {#each (cur.nextStatuses || []) as next}
+            <option value={next}>{VAT_STATUS[next] || next}</option>
+          {/each}
+        {:else}
+          <option value="ready">就绪</option>
+          <option value="dyeing">染色中</option>
+          <option value="drain">排液</option>
+        {/if}
       </select>
     </label>
   </div>
@@ -142,6 +159,7 @@
         <th>纤维</th>
         <th>容量 L</th>
         <th>状态</th>
+        <th>允许的下一状态</th>
         <th></th>
       </tr>
     </thead>
@@ -154,10 +172,19 @@
           <td>{row.fiberType}</td>
           <td>{row.capacityL}</td>
           <td><span class="badge {row.status}">{VAT_STATUS[row.status] || row.status}</span></td>
+          <td>
+            {#each row.nextStatuses || [] as next}
+              <button
+                class="btn ghost small"
+                type="button"
+                on:click={() => transition(row, next)}
+                title="迁移到该状态"
+              >
+                → {VAT_STATUS[next] || next}
+              </button>
+            {/each}
+          </td>
           <td class="row-actions">
-            {#if row.status !== 'drain'}
-              <button class="btn ghost small" type="button" on:click={() => drain(row.id)}>完成排液</button>
-            {/if}
             <button class="btn ghost small" type="button" on:click={() => startEdit(row)}>编辑</button>
             <button class="btn danger small" type="button" on:click={() => remove(row.id)}>删除</button>
           </td>

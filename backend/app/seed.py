@@ -94,9 +94,7 @@ def seed() -> None:
             db.add_all([lot1, lot2])
             db.flush()
 
-            # lot2 was on ready vat historically — keep v3 ready for demo create path
-            # Re-set: creating lot2 would have set dyeing; for seed we leave one dyeing + one ready
-            v3.status = "ready"
+            # v1 染程中（带在产染程 lot1）；v4 排液且无染程，可直接回到就绪。
             db.add_all(
                 [
                     FastnessCheck(

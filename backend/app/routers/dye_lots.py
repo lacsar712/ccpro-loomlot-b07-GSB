@@ -10,10 +10,9 @@ from app.models.dye_lot import DyeLot
 from app.models.user import User
 from app.models.vat import Vat
 from app.schemas.dye_lot import DyeLotCreate, DyeLotUpdate, DyeLotOut
+from app.services.vat_status import DYEING, transition_vat_status
 
 router = APIRouter(prefix="/api/dye-lots", tags=["dye-lots"])
-
-ALLOWED_VAT_STATUSES = {"ready", "dyeing"}
 
 
 @router.get("", response_model=List[DyeLotOut])
@@ -37,11 +36,8 @@ def create_dye_lot(
     vat = db.query(Vat).filter(Vat.id == payload.vat_id).first()
     if not vat:
         raise HTTPException(status_code=400, detail="染缸不存在")
-    if vat.status not in ALLOWED_VAT_STATUSES:
-        raise HTTPException(
-            status_code=409,
-            detail=f"染缸状态为「{vat.status}」，仅 ready 或 dyeing 时可新建染程",
-        )
+    # 开染程自动入染程中：仅 ready / dyeing 可行，排液缸由统一迁移函数 409。
+    transition_vat_status(db, vat, DYEING)
     item = DyeLot(
         vat_id=payload.vat_id,
         recipe_name=payload.recipe_name,
@@ -49,7 +45,6 @@ def create_dye_lot(
         started_at=payload.started_at,
         operator_name=payload.operator_name,
     )
-    vat.status = "dyeing"
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -83,12 +78,8 @@ def update_dye_lot(
         vat = db.query(Vat).filter(Vat.id == data["vat_id"]).first()
         if not vat:
             raise HTTPException(status_code=400, detail="染缸不存在")
-        if vat.status not in ALLOWED_VAT_STATUSES:
-            raise HTTPException(
-                status_code=409,
-                detail=f"目标染缸状态为「{vat.status}」，无法改挂染程",
-            )
-        vat.status = "dyeing"
+        # 改挂染程与开染程同口径：目标缸经同一迁移入口进入染程中。
+        transition_vat_status(db, vat, DYEING)
     for k, v in data.items():
         setattr(item, k, v)
     db.commit()

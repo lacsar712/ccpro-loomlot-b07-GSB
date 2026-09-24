@@ -12,6 +12,7 @@ from app.models.fastness_check import FastnessCheck
 from app.models.user import User
 from app.models.vat import Vat
 from app.schemas.dashboard import DashboardStats
+from app.services.vat_status import DRAIN
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -26,6 +27,8 @@ def get_stats(
         dye_house_total=db.query(func.count(DyeHouse.id)).scalar() or 0,
         vat_ready_count=db.query(func.count(Vat.id)).filter(Vat.status == "ready").scalar() or 0,
         vat_dyeing_count=db.query(func.count(Vat.id)).filter(Vat.status == "dyeing").scalar() or 0,
+        # 口径与染缸列表 status=drain 的行数一致（同一状态常量、同表同过滤）。
+        vat_drain_count=db.query(func.count(Vat.id)).filter(Vat.status == DRAIN).scalar() or 0,
         lots_last_7d=(
             db.query(func.count(DyeLot.id))
             .filter(DyeLot.started_at >= now - timedelta(days=7))

@@ -25,3 +25,10 @@ class Vat(Base):
     dye_lots: Mapped[List["DyeLot"]] = relationship(
         "DyeLot", back_populates="vat", cascade="all, delete-orphan"
     )
+
+    @property
+    def next_statuses(self) -> List[str]:
+        """迁移图上允许的下一状态，唯一来源为 app.services.vat_status。"""
+        from app.services.vat_status import next_statuses
+
+        return next_statuses(self)
